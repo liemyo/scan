@@ -388,12 +388,12 @@ def main():
         Path(out).write_text(json.dumps(data, ensure_ascii=False, indent=1))
         print(f"{len(data)} iklan -> {out} (impor ke website lewat tombol 'Impor JSON')")
         return
-    print(f"Helper aktif di http://127.0.0.1:{PORT}  — buka https://liemyo.github.io/scan lalu klik 'Scan otomatis'. Ctrl+C untuk berhenti.")
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
     except OSError:
         print(f"Helper sudah berjalan di port {PORT} — tidak perlu dijalankan lagi. Langsung buka https://liemyo.github.io/scan")
         return
+    print(f"Helper aktif di http://127.0.0.1:{PORT}  — buka https://liemyo.github.io/scan lalu klik 'Scan otomatis'. Ctrl+C untuk berhenti.")
     srv.serve_forever()
 
 
