@@ -85,7 +85,7 @@ code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:12px}
         <label class="btn sec" style="margin:0;cursor:pointer;font-weight:500">Impor JSON<input id="fbFile" type="file" accept=".json,application/json" class="hide"></label>
         <input id="fbHelper" style="max-width:230px" value="http://127.0.0.1:47950" title="Alamat helper lokal">
       </div>
-      <div class="note">Facebook tidak punya API publik dan wajib login, jadi scan dijalankan oleh helper di Mac Anda (<code>fb_scan.py</code>, memakai sesi Facebook Anda sendiri). Jalankan helper dulu: <code>python3 fb_scan.py</code>. Panduan lengkap ada di repo.</div>
+      <div class="note">Facebook tidak punya API publik dan wajib login, jadi scan dijalankan oleh helper di Mac Anda (<code>fb_scan.py</code>) lewat Google Chrome profil <b>yulius.krisnawan</b> (sesi Facebook yang sudah login). Jalankan helper dulu: <code>python3 fb_scan.py</code>. Panduan lengkap ada di repo.</div>
     </div>
     <div class="status" id="fbS"></div>
     <div id="fbRec"></div>
@@ -105,10 +105,11 @@ code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:12px}
       </div>
       <div class="row">
         <button class="btn" id="gmScan">Scan Google Maps</button>
-        <input id="gmKey" type="password" placeholder="Google Maps API key" style="max-width:300px" autocomplete="off">
+        <input id="gmHelper" style="max-width:230px" value="http://127.0.0.1:47950" title="Alamat helper lokal">
+        <input id="gmKey" type="password" placeholder="API key (opsional)" style="max-width:220px" autocomplete="off">
         <button class="btn sec" id="gmSave">Simpan key</button>
       </div>
-      <div class="note">Memakai Google Places API (New). Key disimpan hanya di browser ini (localStorage) dan dikirim langsung ke Google. Buat key di Google Cloud Console, aktifkan <b>Places API (New)</b>, batasi key ke <code>liemyo.github.io</code>. Hasil maksimal 60 tempat per scan (batas Google).</div>
+      <div class="note"><b>Tanpa API key:</b> kosongkan kolom key — scan dijalankan oleh helper lokal (<code>python3 fb_scan.py</code>) yang membaca Google Maps langsung. <b>Dengan API key:</b> memakai Google Places API (New). Key disimpan hanya di browser ini (localStorage) dan dikirim langsung ke Google. Buat key di Google Cloud Console, aktifkan <b>Places API (New)</b>, batasi key ke <code>liemyo.github.io</code>. Hasil maksimal 60 tempat per scan (batas Google).</div>
     </div>
     <div class="status" id="gmS"></div>
     <div class="stats" id="gmStats"></div>
@@ -275,7 +276,7 @@ const km=(a,b,c,d)=>{const R=6371,t=x=>x*Math.PI/180,dl=t(c-a),dn=t(d-b);const h
 const today=()=>(new Date().getDay()+6)%7;
 const gmCols=[
   {key:'name',label:'Nama',val:r=>r.name,html:r=>`<a target="_blank" rel="noopener" href="${esc(r.maps)}"><b>${esc(r.name)}</b></a>`},
-  {key:'rating',label:'Rating',num:true,val:r=>r.rating,html:r=>r.rating?`⭐ ${r.rating.toFixed(1)} <span class="mut">(${(r.reviews||0).toLocaleString('id-ID')})</span>`:'<span class="mut">–</span>',csv:r=>r.rating},
+  {key:'rating',label:'Rating',num:true,val:r=>r.rating,html:r=>r.rating?`⭐ ${r.rating.toFixed(1)} <span class="mut">${r.reviews?'('+r.reviews.toLocaleString('id-ID')+')':''}</span>`:'<span class="mut">–</span>',csv:r=>r.rating},
   {key:'hours',label:'Jam operasional',val:r=>r.today,html:r=>{
     const st=r.openNow==null?'':(r.openNow?'<span class="ok">● Buka</span> ':'<span class="bad">● Tutup</span> ');
     return st+esc(r.today||'–')+(r.week?.length?`<details><summary>Semua hari</summary>${r.week.map(esc).join('<br>')}</details>`:'')},csv:r=>(r.week||[]).join(' | ')},
@@ -297,10 +298,21 @@ async function places(key,body,mask){
 }
 $('#gmScan').onclick=async()=>{
   const key=$('#gmKey').value.trim(),q=$('#gmQ').value.trim(),l=$('#gmL').value.trim(),R=parseFloat($('#gmR').value)||20,mr=parseFloat($('#gmRt').value)||0;
-  if(!key)return setS('#gmS','Masukkan Google Maps API key.',1);
   if(!q||!l)return setS('#gmS','Isi kategori dan lokasi.',1);
-  store.set('scan.gmKey',key);
   const b=$('#gmScan');b.disabled=true;gmTbl.set([]);
+  if(!key){
+    setS('#gmS','Helper sedang membaca Google Maps… (±1–3 menit)');
+    let r;
+    try{r=await fetch($('#gmHelper').value.replace(/\/$/,'')+'/maps?'+new URLSearchParams({query:q,location:l,radius:R,minRating:mr,limit:60}))}
+    catch(e){setS('#gmS','Helper tidak terjangkau. Jalankan "python3 fb_scan.py" di Mac Anda (Chrome/Firefox), atau isi API key.',1);b.disabled=false;return}
+    try{
+      const j=await r.json();if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));
+      const rows=(j.items||[]).map(x=>({...x,id:x.maps}));
+      gmTbl.set(rows,'dist',1);setS('#gmS',rows.length?`Selesai: ${rows.length} tempat dalam radius ${R} km.`:'Tidak ada tempat ditemukan.',!rows.length);
+    }catch(e){setS('#gmS','Scan gagal: '+e.message,1)}
+    b.disabled=false;return;
+  }
+  store.set('scan.gmKey',key);
   try{
     setS('#gmS','Mencari titik pusat lokasi…');
     const g=await places(key,{textQuery:l,pageSize:1,languageCode:'id'},'places.location,places.displayName');
