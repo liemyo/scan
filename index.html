@@ -248,13 +248,17 @@ $('#fbScan').onclick=async()=>{
   if(!q||!l)return setS('#fbS','Isi kategori dan lokasi.',1);
   const b=$('#fbScan');b.disabled=true;setS('#fbS','Helper sedang scan Facebook Marketplace… (bisa 1–3 menit; jendela Chrome akan terbuka)');
   const p=new URLSearchParams({query:q,location:l,min:$('#fbMin').value,max:$('#fbMax').value,limit:$('#fbN').value||40});
-  try{
-    const r=await fetch($('#fbHelper').value.replace(/\/$/,'')+'/scan?'+p);
-    const j=await r.json();if(!r.ok||j.error)throw new Error(j.error||r.status);
-    fbAll=fbNorm(j);fbApply();setS('#fbS',`Selesai: ${fbAll.length} iklan.`);
-  }catch(e){
-    setS('#fbS','Helper tidak terjangkau / gagal: '+e.message+'. Jalankan "python3 fb_scan.py" di Mac Anda (Chrome/Firefox; Safari memblokir localhost), atau impor file JSON.',1);
+  let r;
+  try{r=await fetch($('#fbHelper').value.replace(/\/$/,'')+'/scan?'+p)}
+  catch(e){
+    setS('#fbS','Helper tidak terjangkau. Pastikan "python3 fb_scan.py" sedang berjalan di Mac Anda, pakai Chrome/Firefox (Safari memblokir localhost), dan izinkan "akses jaringan lokal" bila Chrome menanyakannya. Atau scan lewat terminal lalu klik Impor JSON.',1);
+    b.disabled=false;return;
   }
+  try{
+    const j=await r.json();if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));
+    if(!(j.items||[]).length)throw new Error('Tidak ada iklan ditemukan.');
+    fbAll=fbNorm(j);fbApply();setS('#fbS',`Selesai: ${fbAll.length} iklan.`);
+  }catch(e){setS('#fbS','Scan gagal: '+e.message,1)}
   b.disabled=false;
 };
 $('#fbFile').onchange=async e=>{

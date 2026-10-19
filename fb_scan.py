@@ -53,15 +53,50 @@ def scan(query, location, pmin=None, pmax=None, limit=40, headless=False, log=pr
             ctx = p.chromium.launch_persistent_context(PROFILE, headless=headless,
                                                        viewport={"width": 1280, "height": 900}, locale="id-ID")
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
-        page.goto(url, wait_until="domcontentloaded")
-        # belum login? tunggu pengguna login (maks 3 menit)
-        t0 = time.time()
-        while page.locator('input[name="pass"], form[action*="login"]').count() and time.time() - t0 < 180:
-            log("Menunggu login Facebook di jendela Chrome…")
-            page.wait_for_timeout(3000)
-        if "/marketplace/" not in page.url:
-            page.goto(url, wait_until="domcontentloaded")
-        page.wait_for_timeout(4000)
+        # login: tunggu cookie c_user (maks 5 menit)
+        def logged_in():
+            return any(c["name"] == "c_user" for c in ctx.cookies("https://www.facebook.com"))
+        page.goto("https://www.facebook.com/marketplace/", wait_until="domcontentloaded")
+        page.wait_for_timeout(2500)
+        if not logged_in():
+            page.goto("https://www.facebook.com/login", wait_until="domcontentloaded")
+            t0 = time.time()
+            while not logged_in() and time.time() - t0 < 300:
+                log("Silakan login Facebook di jendela Chrome yang terbuka… (menunggu)")
+                page.wait_for_timeout(3000)
+            if not logged_in():
+                ctx.close()
+                raise RuntimeError("Belum login Facebook. Login di jendela Chrome yang terbuka lalu scan lagi.")
+            log("Login terdeteksi.")
+        page.wait_for_timeout(1500)
+
+        # lokasi: coba slug kota; kalau Facebook mengalihkan ke /category/, pilih lewat kotak lokasi
+        def at_category():
+            return "/marketplace/category" in page.url
+        resolved = False
+        for sl in dict.fromkeys([slug(location), slug(location) + "-city"]):
+            u = f"https://www.facebook.com/marketplace/{sl}/search?{urlencode(params)}"
+            page.goto(u, wait_until="domcontentloaded")
+            page.wait_for_timeout(3500)
+            if not at_category():
+                resolved = True
+                break
+        if not resolved:
+            try:
+                page.goto(url, wait_until="domcontentloaded")
+                page.wait_for_timeout(3000)
+                page.locator('[aria-label*="ocation" i], [aria-label*="okasi" i], div[role="button"]:has-text(", ")').first.click(timeout=4000)
+                box = page.locator('input[aria-label*="ocation" i], input[aria-label*="okasi" i], input[placeholder*="city" i], input[placeholder*="kota" i]').first
+                box.fill(location, timeout=4000)
+                page.wait_for_timeout(2500)
+                page.keyboard.press("ArrowDown"); page.keyboard.press("Enter")
+                page.wait_for_timeout(1500)
+                page.locator('div[role="button"]:has-text("Apply"), div[role="button"]:has-text("Terapkan")').first.click(timeout=4000)
+                page.wait_for_timeout(4000)
+                resolved = True
+            except Exception as e:
+                log(f"  pilih lokasi lewat UI gagal: {e}")
+        page.wait_for_timeout(2500)
 
         # scroll sampai cukup iklan
         seen = {}
@@ -78,6 +113,12 @@ def scan(query, location, pmin=None, pmax=None, limit=40, headless=False, log=pr
             stale = stale + 1 if len(seen) == before else 0
             page.mouse.wheel(0, 2500)
             page.wait_for_timeout(1500)
+        if not seen:
+            dbg = str(Path.home() / ".scan-fb-debug.png")
+            try: page.screenshot(path=dbg)
+            except Exception: pass
+            ctx.close()
+            raise RuntimeError(f"Tidak ada iklan ditemukan (lokasi \"{location}\" mungkin tidak dikenali Facebook, atau tidak ada hasil). URL: {page.url} — screenshot: {dbg}")
         log(f"Ditemukan {len(seen)} iklan, mengambil detail…")
 
         for href, c in list(seen.items())[:limit]:
