@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scan Pasar</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔎</text></svg>">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#16181d;--mut:#6a7280;--line:#e3e6eb;--acc:#2563eb;--accink:#fff;--ok:#15803d;--bad:#b91c1c;--chip:#eef2ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1013;--card:#171a20;--ink:#e8eaee;--mut:#98a0ad;--line:#2a2f38;--acc:#4f8bff;--accink:#fff;--ok:#4ade80;--bad:#f87171;--chip:#1e2640}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 2px}
+.sub{color:var(--mut);margin-bottom:14px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tab{padding:8px 14px;border:1px solid var(--line);background:var(--card);border-radius:8px;cursor:pointer;color:var(--ink);font:inherit}
+.tab.on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+label{display:block;font-size:12px;color:var(--mut);margin-bottom:3px}
+input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font:inherit}
+button.btn{padding:9px 14px;border:0;border-radius:7px;background:var(--acc);color:var(--accink);font:inherit;font-weight:600;cursor:pointer}
+button.btn.sec{background:var(--chip);color:var(--ink);border:1px solid var(--line);font-weight:500}
+button.btn:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.status{color:var(--mut);margin:6px 0;min-height:20px}
+.status.err{color:var(--bad)}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.stat{background:var(--chip);border-radius:8px;padding:6px 10px}
+.stat b{display:block;font-size:15px}
+.stat span{font-size:11px;color:var(--mut)}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+table{border-collapse:collapse;width:100%;min-width:860px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--mut);cursor:pointer;white-space:nowrap;user-select:none}
+th.num,td.num{text-align:right;white-space:nowrap}
+tr:hover td{background:color-mix(in srgb,var(--acc) 5%,transparent)}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.wa{display:inline-block;background:#16a34a;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px}
+.wa:hover{text-decoration:none;opacity:.9}
+.mut{color:var(--mut)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.desc{max-width:340px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+details summary{cursor:pointer;color:var(--mut);font-size:12px}
+.thumb{width:48px;height:48px;object-fit:cover;border-radius:6px;background:var(--line)}
+.hide{display:none}
+.note{font-size:12px;color:var(--mut);margin-top:8px}
+code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔎 Scan Pasar</h1>
+  <div class="sub">Riset pasar &amp; harga: Facebook Marketplace dan Google Maps dalam satu tabel.</div>
+  <div class="tabs">
+    <button class="tab on" data-t="fb">Facebook Marketplace</button>
+    <button class="tab" data-t="gm">Google Maps</button>
+  </div>
+
+  <!-- FACEBOOK -->
+  <section id="fb">
+    <div class="card">
+      <div class="grid">
+        <div><label>Kategori / kata kunci</label><input id="fbQ" placeholder="laptop"></div>
+        <div><label>Lokasi (kota)</label><input id="fbL" placeholder="Kota Magelang"></div>
+        <div><label>Harga min (Rp)</label><input id="fbMin" type="number" min="0" placeholder="0"></div>
+        <div><label>Harga maks (Rp)</label><input id="fbMax" type="number" min="0" placeholder="tanpa batas"></div>
+        <div><label>Maks. iklan</label><input id="fbN" type="number" min="5" max="200" value="40"></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="fbScan">Scan otomatis</button>
+        <button class="btn sec" id="fbOpen">Buka di Facebook</button>
+        <label class="btn sec" style="margin:0;cursor:pointer;font-weight:500">Impor JSON<input id="fbFile" type="file" accept=".json,application/json" class="hide"></label>
+        <input id="fbHelper" style="max-width:230px" value="http://127.0.0.1:47950" title="Alamat helper lokal">
+      </div>
+      <div class="note">Facebook tidak punya API publik dan wajib login, jadi scan dijalankan oleh helper di Mac Anda (<code>fb_scan.py</code>, memakai sesi Facebook Anda sendiri). Jalankan helper dulu: <code>python3 fb_scan.py</code>. Panduan lengkap ada di repo.</div>
+    </div>
+    <div class="status" id="fbS"></div>
+    <div class="stats" id="fbStats"></div>
+    <div class="row" style="margin:0 0 8px"><input id="fbF" placeholder="Filter teks tabel…" style="max-width:260px"><button class="btn sec" id="fbCsv">Ekspor CSV</button><span class="mut" id="fbCount"></span></div>
+    <div class="tw"><table id="fbT"></table></div>
+  </section>
+
+  <!-- GOOGLE MAPS -->
+  <section id="gm" class="hide">
+    <div class="card">
+      <div class="grid">
+        <div><label>Kategori</label><input id="gmQ" placeholder="bakso"></div>
+        <div><label>Lokasi</label><input id="gmL" placeholder="Kota Magelang"></div>
+        <div><label>Radius (km)</label><input id="gmR" type="number" min="1" max="200" value="20"></div>
+        <div><label>Rating min</label><input id="gmRt" type="number" min="0" max="5" step="0.1" placeholder="0"></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="gmScan">Scan Google Maps</button>
+        <input id="gmKey" type="password" placeholder="Google Maps API key" style="max-width:300px" autocomplete="off">
+        <button class="btn sec" id="gmSave">Simpan key</button>
+      </div>
+      <div class="note">Memakai Google Places API (New). Key disimpan hanya di browser ini (localStorage) dan dikirim langsung ke Google. Buat key di Google Cloud Console, aktifkan <b>Places API (New)</b>, batasi key ke <code>liemyo.github.io</code>. Hasil maksimal 60 tempat per scan (batas Google).</div>
+    </div>
+    <div class="status" id="gmS"></div>
+    <div class="stats" id="gmStats"></div>
+    <div class="row" style="margin:0 0 8px"><input id="gmF" placeholder="Filter teks tabel…" style="max-width:260px"><button class="btn sec" id="gmCsv">Ekspor CSV</button><span class="mut" id="gmCount"></span></div>
+    <div class="tw"><table id="gmT"></table></div>
+  </section>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rp=n=>n==null||isNaN(n)?'–':'Rp '+Math.round(n).toLocaleString('id-ID');
+const store={get(k){try{return localStorage.getItem(k)||''}catch(e){return ''}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+function waNum(p){
+  let d=String(p||'').replace(/[^\d+]/g,'');
+  if(d.startsWith('+'))d=d.slice(1);else if(d.startsWith('0'))d='62'+d.slice(1);
+  return /^628\d{8,12}$/.test(d)?d:'';
+}
+function waCell(phone,text){
+  const w=waNum(phone);
+  if(w)return `<a class="wa" target="_blank" rel="noopener" href="https://wa.me/${w}${text?'?text='+encodeURIComponent(text):''}">💬 ${esc(phone)}</a>`;
+  if(phone)return `<a href="tel:${esc(phone.replace(/[^\d+]/g,''))}">${esc(phone)}</a> <span class="mut">(bukan WA)</span>`;
+  return '<span class="mut">–</span>';
+}
+
+/* generic sortable/filterable table */
+function makeTable(el,cols,onView){
+  const st={rows:[],key:null,dir:1,q:''};
+  const t=document.querySelector(el);
+  function view(){
+    let r=st.rows;
+    if(st.q){const q=st.q.toLowerCase();r=r.filter(x=>JSON.stringify(x).toLowerCase().includes(q))}
+    if(st.key){const c=cols.find(c=>c.key===st.key);r=[...r].sort((a,b)=>{
+      const x=c.val(a),y=c.val(b);
+      if(x==null||x==='')return 1;if(y==null||y==='')return -1;
+      return (typeof x==='number'?x-y:String(x).localeCompare(String(y),'id'))*st.dir})}
+    return r;
+  }
+  function draw(){
+    const r=view();
+    t.innerHTML='<thead><tr>'+cols.map(c=>`<th class="${c.num?'num':''}" data-k="${c.key}">${c.label}${st.key===c.key?(st.dir>0?' ▲':' ▼'):''}</th>`).join('')+'</tr></thead><tbody>'+
+      (r.length?r.map((x,i)=>'<tr>'+cols.map(c=>`<td class="${c.num?'num':''}">${c.html?c.html(x,i):esc(c.val(x))}</td>`).join('')+'</tr>').join(''):`<tr><td colspan="${cols.length}" class="mut" style="text-align:center;padding:24px">Belum ada data.</td></tr>`)+'</tbody>';
+    t.querySelectorAll('th').forEach(h=>h.onclick=()=>{const k=h.dataset.k;if(st.key===k)st.dir*=-1;else{st.key=k;st.dir=1}draw()});
+    onView&&onView(r,st.rows);
+  }
+  draw();
+  return {set(rows,key,dir){st.rows=rows;if(key){st.key=key;st.dir=dir||1}draw()},filter(q){st.q=q;draw()},view,draw};
+}
+function csv(rows,cols,name){
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const s='﻿'+cols.map(c=>q(c.label)).join(',')+'\n'+rows.map(r=>cols.map(c=>q(c.csv?c.csv(r):c.val(r))).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download=name+'-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+const setS=(id,t,err)=>{const e=$(id);e.textContent=t;e.className='status'+(err?' err':'')};
+const statBox=(l,v)=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`;
+const median=a=>{if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+
+/* tabs */
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
+  ['fb','gm'].forEach(id=>$('#'+id).classList.toggle('hide',id!==b.dataset.t));
+});
+
+/* ================= FACEBOOK ================= */
+const fbCols=[
+  {key:'img',label:'',val:r=>'',html:r=>r.image?`<img class="thumb" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.image)}" alt="">`:'',csv:r=>r.image||''},
+  {key:'title',label:'Nama barang',val:r=>r.title,html:r=>`<a target="_blank" rel="noopener" href="${esc(r.url)}">${esc(r.title)}</a>`,csv:r=>r.title},
+  {key:'price',label:'Harga',num:true,val:r=>r.price,html:r=>r.price==null?esc(r.priceText||'–'):rp(r.price),csv:r=>r.price??r.priceText},
+  {key:'seller',label:'Penjual',val:r=>r.seller,html:r=>r.seller?(r.sellerUrl?`<a target="_blank" rel="noopener" href="${esc(r.sellerUrl)}">${esc(r.seller)}</a>`:esc(r.seller)):'<span class="mut">–</span>',csv:r=>r.seller},
+  {key:'location',label:'Lokasi',val:r=>r.location},
+  {key:'description',label:'Deskripsi singkat',val:r=>r.description,html:r=>`<div class="desc">${esc(r.description||'')}</div>`},
+  {key:'phone',label:'WhatsApp',val:r=>r.phone,html:r=>waCell(r.phone,'Halo, apakah '+r.title+' masih tersedia?')},
+  {key:'url',label:'Link',val:r=>r.url,html:r=>`<a target="_blank" rel="noopener" href="${esc(r.url)}">Buka ↗</a>`},
+];
+let fbAll=[];
+const fbTbl=makeTable('#fbT',fbCols,(view,all)=>{
+  const p=view.map(r=>r.price).filter(v=>typeof v==='number'&&v>0);
+  $('#fbCount').textContent=all.length?`${view.length} dari ${all.length} iklan`:'';
+  $('#fbStats').innerHTML=p.length?statBox('Termurah',rp(Math.min(...p)))+statBox('Median',rp(median(p)))+statBox('Rata-rata',rp(p.reduce((a,b)=>a+b,0)/p.length))+statBox('Termahal',rp(Math.max(...p)))+statBox('Iklan berharga',p.length):'';
+});
+function fbApply(){
+  const mn=parseFloat($('#fbMin').value),mx=parseFloat($('#fbMax').value);
+  const rows=fbAll.filter(r=>r.price==null||((isNaN(mn)||r.price>=mn)&&(isNaN(mx)||r.price<=mx)));
+  fbTbl.set(rows,'price',1);
+}
+function fbNorm(a){
+  return (Array.isArray(a)?a:(a.items||[])).map(x=>({
+    title:x.title||x.name||'',price:typeof x.price==='number'?x.price:(parseInt(String(x.price||x.priceText||'').replace(/\D/g,''))||null),
+    priceText:x.priceText||'',seller:x.seller||'',sellerUrl:x.sellerUrl||'',location:x.location||'',
+    description:x.description||'',phone:x.phone||'',url:x.url||'',image:x.image||''}));
+}
+function fbUrl(){
+  const q=$('#fbQ').value.trim(),l=$('#fbL').value.trim();
+  const slug=l.toLowerCase().replace(/^(kota|kabupaten|kab\.?)\s+/,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const p=new URLSearchParams({query:q,exact:'false'});
+  const mn=$('#fbMin').value,mx=$('#fbMax').value;if(mn)p.set('minPrice',mn);if(mx)p.set('maxPrice',mx);
+  return `https://www.facebook.com/marketplace/${slug||'category'}/search?${p}`;
+}
+$('#fbOpen').onclick=()=>{if(!$('#fbQ').value.trim())return setS('#fbS','Isi kategori dulu.',1);window.open(fbUrl(),'_blank','noopener')};
+$('#fbScan').onclick=async()=>{
+  const q=$('#fbQ').value.trim(),l=$('#fbL').value.trim();
+  if(!q||!l)return setS('#fbS','Isi kategori dan lokasi.',1);
+  const b=$('#fbScan');b.disabled=true;setS('#fbS','Helper sedang scan Facebook Marketplace… (bisa 1–3 menit; jendela Chrome akan terbuka)');
+  const p=new URLSearchParams({query:q,location:l,min:$('#fbMin').value,max:$('#fbMax').value,limit:$('#fbN').value||40});
+  try{
+    const r=await fetch($('#fbHelper').value.replace(/\/$/,'')+'/scan?'+p);
+    const j=await r.json();if(!r.ok||j.error)throw new Error(j.error||r.status);
+    fbAll=fbNorm(j);fbApply();setS('#fbS',`Selesai: ${fbAll.length} iklan.`);
+  }catch(e){
+    setS('#fbS','Helper tidak terjangkau / gagal: '+e.message+'. Jalankan "python3 fb_scan.py" di Mac Anda (Chrome/Firefox; Safari memblokir localhost), atau impor file JSON.',1);
+  }
+  b.disabled=false;
+};
+$('#fbFile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{fbAll=fbNorm(JSON.parse(await f.text()));fbApply();setS('#fbS',`Diimpor: ${fbAll.length} iklan dari ${f.name}.`)}catch(x){setS('#fbS','File JSON tidak valid.',1)}
+  e.target.value='';
+};
+['#fbMin','#fbMax'].forEach(s=>$(s).addEventListener('input',()=>fbAll.length&&fbApply()));
+$('#fbF').oninput=e=>fbTbl.filter(e.target.value);
+$('#fbCsv').onclick=()=>csv(fbTbl.view(),fbCols.filter(c=>c.key!=='img'),'facebook-marketplace');
+
+/* ================= GOOGLE MAPS ================= */
+const km=(a,b,c,d)=>{const R=6371,t=x=>x*Math.PI/180,dl=t(c-a),dn=t(d-b);const h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const today=()=>(new Date().getDay()+6)%7;
+const gmCols=[
+  {key:'name',label:'Nama',val:r=>r.name,html:r=>`<a target="_blank" rel="noopener" href="${esc(r.maps)}"><b>${esc(r.name)}</b></a>`},
+  {key:'rating',label:'Rating',num:true,val:r=>r.rating,html:r=>r.rating?`⭐ ${r.rating.toFixed(1)} <span class="mut">(${(r.reviews||0).toLocaleString('id-ID')})</span>`:'<span class="mut">–</span>',csv:r=>r.rating},
+  {key:'hours',label:'Jam operasional',val:r=>r.today,html:r=>{
+    const st=r.openNow==null?'':(r.openNow?'<span class="ok">● Buka</span> ':'<span class="bad">● Tutup</span> ');
+    return st+esc(r.today||'–')+(r.week?.length?`<details><summary>Semua hari</summary>${r.week.map(esc).join('<br>')}</details>`:'')},csv:r=>(r.week||[]).join(' | ')},
+  {key:'address',label:'Lokasi',val:r=>r.address},
+  {key:'dist',label:'Jarak (km)',num:true,val:r=>r.dist,html:r=>r.dist==null?'–':r.dist.toFixed(1),csv:r=>r.dist?.toFixed(1)},
+  {key:'phone',label:'WhatsApp / Telp',val:r=>r.phone,html:r=>waCell(r.phone,'Halo, saya melihat '+r.name+' di Google Maps.')},
+  {key:'maps',label:'Google Maps',val:r=>r.maps,html:r=>`<a target="_blank" rel="noopener" href="${esc(r.maps)}">Buka ↗</a>`},
+];
+const gmTbl=makeTable('#gmT',gmCols,(view,all)=>{
+  const rt=view.map(r=>r.rating).filter(Boolean);
+  $('#gmCount').textContent=all.length?`${view.length} dari ${all.length} tempat`:'';
+  $('#gmStats').innerHTML=all.length?statBox('Tempat',view.length)+(rt.length?statBox('Rating rata-rata',(rt.reduce((a,b)=>a+b,0)/rt.length).toFixed(2)):'')+statBox('Punya WhatsApp',view.filter(r=>waNum(r.phone)).length)+statBox('Buka sekarang',view.filter(r=>r.openNow).length):'';
+});
+$('#gmKey').value=store.get('scan.gmKey');
+$('#gmSave').onclick=()=>{store.set('scan.gmKey',$('#gmKey').value.trim());setS('#gmS','Key disimpan di browser ini.')};
+async function places(key,body,mask){
+  const r=await fetch('https://places.googleapis.com/v1/places:searchText',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':key,'X-Goog-FieldMask':mask},body:JSON.stringify(body)});
+  const j=await r.json();if(!r.ok)throw new Error(j.error?.message||r.status);return j;
+}
+$('#gmScan').onclick=async()=>{
+  const key=$('#gmKey').value.trim(),q=$('#gmQ').value.trim(),l=$('#gmL').value.trim(),R=parseFloat($('#gmR').value)||20,mr=parseFloat($('#gmRt').value)||0;
+  if(!key)return setS('#gmS','Masukkan Google Maps API key.',1);
+  if(!q||!l)return setS('#gmS','Isi kategori dan lokasi.',1);
+  store.set('scan.gmKey',key);
+  const b=$('#gmScan');b.disabled=true;gmTbl.set([]);
+  try{
+    setS('#gmS','Mencari titik pusat lokasi…');
+    const g=await places(key,{textQuery:l,pageSize:1,languageCode:'id'},'places.location,places.displayName');
+    const c=g.places?.[0]?.location;if(!c)throw new Error('Lokasi "'+l+'" tidak ditemukan.');
+    const dLat=R/111.32,dLng=R/(111.32*Math.cos(c.latitude*Math.PI/180));
+    const mask='nextPageToken,places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.regularOpeningHours,places.currentOpeningHours,places.nationalPhoneNumber,places.internationalPhoneNumber,places.googleMapsUri';
+    const out=new Map();let token;
+    for(let page=1;page<=3;page++){
+      setS('#gmS',`Mengambil halaman ${page}/3… (${out.size} tempat)`);
+      const body={textQuery:q,pageSize:20,languageCode:'id',regionCode:'ID',locationRestriction:{rectangle:{low:{latitude:c.latitude-dLat,longitude:c.longitude-dLng},high:{latitude:c.latitude+dLat,longitude:c.longitude+dLng}}}};
+      if(token)body.pageToken=token;
+      const j=await places(key,body,mask);
+      for(const p of j.places||[]){
+        const d=p.location?km(c.latitude,c.longitude,p.location.latitude,p.location.longitude):null;
+        if(d!=null&&d>R)continue;
+        const wk=p.regularOpeningHours?.weekdayDescriptions||[];
+        const t=wk[today()]||'';
+        out.set(p.id,{id:p.id,name:p.displayName?.text||'',rating:p.rating||0,reviews:p.userRatingCount||0,address:p.formattedAddress||'',dist:d,
+          phone:p.internationalPhoneNumber||p.nationalPhoneNumber||'',maps:p.googleMapsUri||'',week:wk,today:t.replace(/^[^:]+:\s*/,''),openNow:p.currentOpeningHours?.openNow??null});
+      }
+      token=j.nextPageToken;if(!token)break;
+    }
+    const rows=[...out.values()].filter(r=>r.rating>=mr);
+    gmTbl.set(rows,'dist',1);
+    setS('#gmS',`Selesai: ${rows.length} tempat dalam radius ${R} km dari ${g.places[0].displayName?.text||l}.`);
+  }catch(e){setS('#gmS','Gagal: '+e.message,1)}
+  b.disabled=false;
+};
+$('#gmF').oninput=e=>gmTbl.filter(e.target.value);
+$('#gmCsv').onclick=()=>csv(gmTbl.view(),gmCols,'google-maps');
+</script>
+</body>
+</html>
